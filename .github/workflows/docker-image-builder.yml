@@ -83,7 +83,7 @@ jobs:
               ;;
           esac
 
-          image_repo="ghcr.io/${owner_slug}/language-${language_slug}"
+          image_repo="ghcr.io/${owner_slug}/docker-${language_slug}"
           image_ref="${image_repo}:${version}"
           repository_url="https://${image_repo}"
 
@@ -118,7 +118,7 @@ jobs:
           FROM ${BASE_IMAGE}
           SHELL ["/bin/bash", "-c"]
           LABEL org.opencontainers.image.source="${{ github.repository }}"
-          LABEL org.opencontainers.image.description="Language image managed by workflow"
+          LABEL org.opencontainers.image.description="Docker image managed by workflow"
           CMD ["bash"]
           EOF
 
@@ -140,7 +140,7 @@ jobs:
           echo "repository_url=${{ steps.prep.outputs.repository_url }}" >> "$GITHUB_OUTPUT"
           echo "pushed=$pushed" >> "$GITHUB_OUTPUT"
           {
-            echo "### Language image build summary"
+            echo "### Docker image build summary"
             echo "- Language: ${{ inputs.language }}"
             echo "- Version: ${{ inputs.version }}"
             echo "- Image: ${{ steps.prep.outputs.image_ref }}"
