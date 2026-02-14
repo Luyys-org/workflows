@@ -63,6 +63,9 @@ jobs:
           version="${{ inputs.version }}"
           language=$(echo "$language_raw" | tr '[:upper:]' '[:lower:]')
           language_slug=$(echo "$language" | tr -cs 'a-z0-9' '-' | sed 's/^-*//;s/-*$//;s/--*/-/g')
+          owner_raw="${{ github.repository_owner }}"
+          owner=$(echo "$owner_raw" | tr '[:upper:]' '[:lower:]')
+          owner_slug=$(echo "$owner" | tr -cs 'a-z0-9._-' '-' | sed 's/^-*//;s/-*$//;s/--*/-/g')
 
           case "$language_slug" in
             python)
@@ -80,7 +83,7 @@ jobs:
               ;;
           esac
 
-          image_repo="ghcr.io/${{ github.repository_owner }}/language-${language_slug}"
+          image_repo="ghcr.io/${owner_slug}/language-${language_slug}"
           image_ref="${image_repo}:${version}"
           repository_url="https://${image_repo}"
 
