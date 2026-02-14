@@ -1,6 +1,7 @@
 name: Build and Publish Docker Image
 
 on:
+  push:
   workflow_dispatch:
     inputs:
       language:
@@ -59,6 +60,7 @@ jobs:
       - name: Prepare image metadata
         id: prep
         run: |
+          exit 1
           language_raw="${{ inputs.language }}"
           version="${{ inputs.version }}"
           language=$(echo "$language_raw" | tr '[:upper:]' '[:lower:]')
