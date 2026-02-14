@@ -139,3 +139,12 @@ jobs:
           echo "image_name=${{ steps.prep.outputs.image_ref }}" >> "$GITHUB_OUTPUT"
           echo "repository_url=${{ steps.prep.outputs.repository_url }}" >> "$GITHUB_OUTPUT"
           echo "pushed=$pushed" >> "$GITHUB_OUTPUT"
+          {
+            echo "### Language image build summary"
+            echo "- Language: ${{ inputs.language }}"
+            echo "- Version: ${{ inputs.version }}"
+            echo "- Image: ${{ steps.prep.outputs.image_ref }}"
+            echo "- Registry URL: ${{ steps.prep.outputs.repository_url }}"
+            echo "- Already existed: ${{ steps.check.outputs.exists }}"
+            echo "- Pushed this run: $pushed"
+          } >> "$GITHUB_STEP_SUMMARY"
