@@ -1,0 +1,138 @@
+name: Build and Publish Docker Image
+
+on:
+  workflow_dispatch:
+    inputs:
+      language:
+        description: "Language to package"
+        required: true
+        type: choice
+        options:
+          - python
+          - node
+          - java
+      version:
+        description: "Runtime version tag (e.g. 3.11, 22)"
+        required: true
+        type: string
+  workflow_call:
+    inputs:
+      language:
+        description: "Language to package"
+        required: true
+        type: string
+      version:
+        description: "Runtime version tag (e.g. 3.11, 22)"
+        required: true
+        type: string
+    outputs:
+      image-name:
+        description: "Fully qualified image reference (registry/repo:tag)"
+        value: ${{ jobs.build-image.outputs.image-name }}
+      repository-url:
+        description: "Package registry page"
+        value: ${{ jobs.build-image.outputs.repository-url }}
+      image-exists:
+        description: "true when the image was already present"
+        value: ${{ jobs.build-image.outputs.image-exists }}
+      pushed:
+        description: "true when this run built and pushed the image"
+        value: ${{ jobs.build-image.outputs.pushed }}
+
+jobs:
+  build-image:
+    name: Build Image
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      image-name: ${{ steps.summary.outputs.image_name }}
+      repository-url: ${{ steps.summary.outputs.repository_url }}
+      image-exists: ${{ steps.check.outputs.exists }}
+      pushed: ${{ steps.summary.outputs.pushed }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Prepare image metadata
+        id: prep
+        run: |
+          language_raw="${{ inputs.language }}"
+          version="${{ inputs.version }}"
+          language=$(echo "$language_raw" | tr '[:upper:]' '[:lower:]')
+          language_slug=$(echo "$language" | tr -cs 'a-z0-9' '-' | sed 's/^-*//;s/-*$//;s/--*/-/g')
+
+          case "$language_slug" in
+            python)
+              base_image="python:${version}-slim"
+              ;;
+            node)
+              base_image="node:${version}-slim"
+              ;;
+            java)
+              base_image="eclipse-temurin:${version}"
+              ;;
+            *)
+              echo "Unsupported language: $language_raw" >&2
+              exit 1
+              ;;
+          esac
+
+          image_repo="ghcr.io/${{ github.repository_owner }}/language-${language_slug}"
+          image_ref="${image_repo}:${version}"
+          repository_url="https://${image_repo}"
+
+          echo "base_image=$base_image" >> "$GITHUB_OUTPUT"
+          echo "image_repo=$image_repo" >> "$GITHUB_OUTPUT"
+          echo "image_ref=$image_ref" >> "$GITHUB_OUTPUT"
+          echo "repository_url=$repository_url" >> "$GITHUB_OUTPUT"
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Check if image exists
+        id: check
+        run: |
+          if docker manifest inspect "${{ steps.prep.outputs.image_ref }}" > /dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            echo "Image already exists; skipping build."
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+            echo "Image missing; build will proceed."
+          fi
+
+      - name: Build image
+        if: steps.check.outputs.exists == 'false'
+        run: |
+          cat > Dockerfile <<'EOF'
+          ARG BASE_IMAGE
+          FROM ${BASE_IMAGE}
+          SHELL ["/bin/bash", "-c"]
+          LABEL org.opencontainers.image.source="${{ github.repository }}"
+          LABEL org.opencontainers.image.description="Language image managed by workflow"
+          CMD ["bash"]
+          EOF
+
+          docker build \
+            --build-arg BASE_IMAGE="${{ steps.prep.outputs.base_image }}" \
+            -t "${{ steps.prep.outputs.image_ref }}" \
+            .
+
+      - name: Push image
+        if: steps.check.outputs.exists == 'false'
+        run: docker push "${{ steps.prep.outputs.image_ref }}"
+
+      - name: Summarize outputs
+        id: summary
+        if: always()
+        run: |
+          pushed=$([ "${{ steps.check.outputs.exists }}" = "false" ] && echo "true" || echo "false")
+          echo "image_name=${{ steps.prep.outputs.image_ref }}" >> "$GITHUB_OUTPUT"
+          echo "repository_url=${{ steps.prep.outputs.repository_url }}" >> "$GITHUB_OUTPUT"
+          echo "pushed=$pushed" >> "$GITHUB_OUTPUT"
