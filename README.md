@@ -1,6 +1,6 @@
 # Reusable GitHub Workflows
 
-## Language image builder
+## Docker image builder
 - Workflow: [.github/workflows/language-image-builder.yml](.github/workflows/language-image-builder.yml)
 - Builds or reuses a language-specific container image in GHCR and returns the image reference plus registry URL.
 
@@ -26,5 +26,5 @@ jobs:
 Consume outputs with `needs.build-runtime.outputs.image-name` and `needs.build-runtime.outputs.repository-url`.
 
 ### How to run manually
-Trigger the `Build and Publish Language Image` workflow in the Actions tab and provide `language` and `version` inputs.
+Trigger the `Build and Publish Docker Image` workflow in the Actions tab and provide `language` and `version` inputs.
 
