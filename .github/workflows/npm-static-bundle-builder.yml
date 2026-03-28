@@ -1,0 +1,95 @@
+name: Build NPM Static Bundle
+
+on:
+  workflow_call:
+    inputs:
+      node-version:
+        description: "Node.js version"
+        required: true
+        type: string
+      application-name:
+        description: "Name of the application being built (used for artifact naming)"
+        required: true
+        type: string
+    outputs:
+      build-directory:
+        description: "Resolved path to generated static files"
+        value: ${{ jobs.build-static.outputs.build-directory }}
+      artifact-name:
+        description: "Artifact name that contains static build files"
+        value: ${{ jobs.build-static.outputs.artifact-name }}
+      artifact-id:
+        description: "Uploaded artifact identifier"
+        value: ${{ jobs.build-static.outputs.artifact-id }}
+      artifact-url:
+        description: "URL to the uploaded artifact"
+        value: ${{ jobs.build-static.outputs.artifact-url }}
+
+jobs:
+  build-static:
+    name: Build static files
+    runs-on: ubuntu-latest
+    outputs:
+      build-directory: ${{ steps.meta.outputs.build_directory }}
+      artifact-name: ${{ steps.meta.outputs.artifact_name }}
+      artifact-id: ${{ steps.upload.outputs.artifact-id }}
+      artifact-url: ${{ steps.upload.outputs.artifact-url }}
+
+    steps:
+      # Fetch repository content used for dependency install and build.
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # Install the requested Node.js version with npm cache support.
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ inputs.node-version }}
+          cache: npm
+          cache-dependency-path: ./package-lock.json
+
+      # Install project dependencies in the selected project directory.
+      - name: Install dependencies
+        run: npm install
+
+      # Build deployable static files.
+      - name: Build static bundle
+        run: npm build
+
+      # Validate output and publish metadata for workflow outputs.
+      - name: Resolve build metadata
+        id: meta
+        shell: bash
+        run: |
+          build_directory="./dist"
+          build_directory="$(echo "$build_directory" | sed 's#//*#/#g')"
+          artifact_name="${{ inputs.application-name }}-node-${{ inputs.node-version }}_${{ github.run_id }}"
+
+          if [ ! -d "$build_directory" ]; then
+            echo "Expected static output directory not found: $build_directory" >&2
+            exit 1
+          fi
+
+          echo "build_directory=$build_directory" >> "$GITHUB_OUTPUT"
+          echo "artifact_name=$artifact_name" >> "$GITHUB_OUTPUT"
+
+      # Upload the generated static files for deployment workflows.
+      - name: Upload static bundle artifact
+        id: upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.meta.outputs.artifact_name }}
+          path: ${{ steps.meta.outputs.build_directory }}
+          if-no-files-found: error
+
+      - name: Summarize build
+        if: always()
+        run: |
+          {
+            echo "### NPM static bundle build summary"
+            echo "- Node version: ${{ inputs.node-version }}"
+            echo "- Build directory: ${{ steps.meta.outputs.build_directory }}"
+            echo "- Artifact name: ${{ steps.meta.outputs.artifact_name }}"
+            echo "- Artifact ID: ${{ steps.upload.outputs.artifact-id }}"
+            echo "- Artifact URL: ${{ steps.upload.outputs.artifact-url }}"
+          } >> "$GITHUB_STEP_SUMMARY"
