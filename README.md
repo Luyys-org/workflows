@@ -29,7 +29,7 @@ Consume outputs with `needs.build-runtime.outputs.image-name` and `needs.build-r
 Trigger the `Build and Publish Docker Image` workflow in the Actions tab and provide `language` and `version` inputs.
 
 ## NPM static bundle builder
-- Workflow: [.github/workflows/npm-static-bundle-builder.yml](.github/workflows/npm-static-bundle-builder.yml)
+- Workflow: [.github/workflows/npm-build.yml](.github/workflows/npm-build.yml)
 - Builds npm assets into deployable static files from `./dist` and uploads them as an artifact.
 
 ### Inputs
@@ -51,10 +51,25 @@ Artifact name format:
 ```yaml
 jobs:
 	build-static:
-		uses: <owner>/<repo>/.github/workflows/npm-static-bundle-builder.yml@<ref>
+		uses: <owner>/<repo>/.github/workflows/npm-build.yml@<ref>
 		with:
 			node-version: "20"
 			application-name: "frontend"
 ```
 Consume outputs with `needs.build-static.outputs.build-directory`, `needs.build-static.outputs.artifact-name`, and optionally `needs.build-static.outputs.artifact-url`.
+
+## GitHub Pages deploy from npm build artifact
+- Workflow: [.github/workflows/deploy-page.yml](.github/workflows/deploy-page.yml)
+- Deploys the static artifact produced by `npm-build.yml` to the current repository GitHub Pages site.
+
+### Triggers
+- Manual only: `workflow_dispatch` with optional overrides.
+
+### Manual inputs
+- `build-run-id`: Optional `npm-build.yml` run ID to deploy. If omitted, the latest successful `npm-build.yml` run is used.
+- `artifact-name`: Optional artifact name to deploy from the selected run. If omitted, the newest non-expired artifact in that run is used.
+
+### Notes
+- The workflow resolves the artifact from the selected npm build run, downloads it, then publishes it using `actions/deploy-pages`.
+- Repository Pages must be enabled and configured for GitHub Actions as the source.
 
