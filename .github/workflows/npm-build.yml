@@ -54,7 +54,7 @@ jobs:
 
       # Build deployable static files.
       - name: Build static bundle
-        run: npm build
+        run: npm run build
 
       # Validate output and publish metadata for workflow outputs.
       - name: Resolve build metadata
