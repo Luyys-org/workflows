@@ -82,7 +82,32 @@ jobs:
 ```
 
 ### Notes
-- This workflow can only be called from other workflows using `workflow_call`. It cannot be triggered manually.
 - It must be called in the same workflow run as `npm-build.yml` to access the artifact.
 - Repository Pages must be enabled and configured for GitHub Actions as the source.
+
+## NPM package version bump
+- Workflow: [.github/workflows/npm-version-bump.yml](.github/workflows/npm-version-bump.yml)
+- Bumps the version field in `package.json` (and `package-lock.json` when present) according to the requested semver update type, then commits and pushes the change back to the repository.
+
+### Inputs
+- `update-type`: Semver increment to apply — `major` (breaking change), `minor` (new feature), or `patch` (bug fix). Required.
+
+### Outputs
+- `new-version`: The semver version string after bumping (e.g. `1.3.0`).
+- `previous-version`: The semver version string before bumping (e.g. `1.2.0`).
+
+### How to use (reusable call)
+```yaml
+jobs:
+	bump:
+		uses: <owner>/<repo>/.github/workflows/npm-version-bump.yml@<ref>
+		with:
+			update-type: minor
+```
+Consume outputs with `needs.bump.outputs.new-version` and `needs.bump.outputs.previous-version`.
+
+### Notes
+- The workflow commits the updated file(s) as `github-actions[bot]` and pushes directly to the branch it was called on.
+- `contents: write` permission is required and is declared inside the workflow, so no additional repository settings are needed when using `workflow_call`.
+- `update-type` is a free-form string validated at runtime; invalid values fail the job immediately before any file changes are made.
 

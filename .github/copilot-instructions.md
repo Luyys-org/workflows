@@ -4,6 +4,7 @@ When you are asked to write a workflow file, follow these instructions:
 2. Be as specific as possible in the workflow file. Include all necessary steps, such as checking out the code, setting up the environment, installing dependencies, running tests, and deploying if applicable.
 3. Use the appropriate GitHub Actions syntax and best practices. For example, use `actions/checkout` to check out the code, and specify the correct versions of any actions you use.
 4. Make workflows configurable with input parameters. This allows users to customize the workflow without modifying the file directly.
-5. Include comments in the workflow file to explain the purpose of each step and any important details. This will help other users understand how the workflow works and how to use it effectively.
-6. Test the workflow file to ensure it works as expected before committing it to the repository.
-7. Edit the README file in the repository to include documentation about the new workflow, including how to use it and any input parameters it accepts. This will help users understand how to utilize the workflow effectively.
+5. Do not create a `workflow_dispatch` trigger for the workflow, as these workflows are intended to be reusable and called from other workflows using `workflow_call`. Instead, rely on the calling workflow to trigger the execution of the reusable workflow.
+6. Include comments in the workflow file to explain the purpose of each step and any important details. This will help other users understand how the workflow works and how to use it effectively.
+7. Test the workflow file to ensure it works as expected before committing it to the repository.
+8. Edit the README file in the repository to include documentation about the new workflow, including how to use it and any input parameters it accepts. This will help users understand how to utilize the workflow effectively.

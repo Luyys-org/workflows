@@ -1,0 +1,85 @@
+name: Bump NPM Package Version
+
+on:
+  # Reusable workflow — call from another workflow
+  workflow_call:
+    inputs:
+      update-type:
+        description: "Version bump type: 'major', 'minor', or 'patch' (bug fix)"
+        required: true
+        type: string
+    outputs:
+      new-version:
+        description: "The new semver version string after bumping (e.g. 1.3.0)"
+        value: ${{ jobs.bump-version.outputs.new-version }}
+      previous-version:
+        description: "The semver version string before bumping (e.g. 1.2.0)"
+        value: ${{ jobs.bump-version.outputs.previous-version }}
+
+# Write access is required to commit the version change back to the repository
+permissions:
+  contents: write
+
+jobs:
+  bump-version:
+    name: Bump Package Version
+    runs-on: ubuntu-latest
+
+    outputs:
+      new-version: ${{ steps.bump.outputs.new-version }}
+      previous-version: ${{ steps.bump.outputs.previous-version }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          # Fetch enough history for a clean push; 1 is sufficient here
+          fetch-depth: 1
+
+      - name: Configure Git identity for the bot commit
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Validate update-type input
+        run: |
+          case "${{ inputs.update-type }}" in
+            major|minor|patch)
+              echo "update-type is valid: ${{ inputs.update-type }}"
+              ;;
+            *)
+              echo "::error::Invalid update-type '${{ inputs.update-type }}'. Allowed values: major, minor, patch."
+              exit 1
+              ;;
+          esac
+
+      - name: Bump version in package.json
+        id: bump
+        run: |
+          # Capture the current version before bumping
+          PREVIOUS_VERSION=$(node -p "require('./package.json').version")
+
+          # npm version updates package.json (and package-lock.json when present).
+          # --no-git-tag-version prevents npm from creating a commit or tag so we
+          # can craft our own commit message below.
+          NEW_VERSION=$(npm version ${{ inputs.update-type }} --no-git-tag-version)
+
+          # npm outputs the new version with a leading 'v' (e.g. v1.3.0); strip it.
+          NEW_VERSION="${NEW_VERSION#v}"
+
+          echo "previous-version=$PREVIOUS_VERSION" >> "$GITHUB_OUTPUT"
+          echo "new-version=$NEW_VERSION"            >> "$GITHUB_OUTPUT"
+          echo "Bumped $PREVIOUS_VERSION → $NEW_VERSION"
+
+      - name: Stage version files
+        run: |
+          git add package.json
+          # Stage the lock-file only if it exists (not all projects commit it)
+          [ -f package-lock.json ] && git add package-lock.json || true
+
+      - name: Commit version bump
+        run: |
+          git commit -m "chore: bump version ${{ steps.bump.outputs.previous-version }} → ${{ steps.bump.outputs.new-version }}"
+
+      - name: Push version bump commit
+        run: git push
