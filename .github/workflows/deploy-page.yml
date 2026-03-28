@@ -43,3 +43,9 @@ jobs:
         uses: actions/deploy-pages@v4
         with:
           artifact_name: ${{ inputs.artifact-name }}
+
+      - name: Summarize build
+        run: |
+          {
+            echo "- Page URL: ${{ steps.deployment.outputs.page_url }}"
+          } >> "$GITHUB_STEP_SUMMARY"
