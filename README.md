@@ -60,16 +60,29 @@ Consume outputs with `needs.build-static.outputs.build-directory`, `needs.build-
 
 ## GitHub Pages deploy from npm build artifact
 - Workflow: [.github/workflows/deploy-page.yml](.github/workflows/deploy-page.yml)
-- Deploys the static artifact produced by `npm-build.yml` to the current repository GitHub Pages site.
+- Deploys the static artifact produced by `npm-build.yml` to the current repository GitHub Pages site. Must be called within the same workflow run as `npm-build.yml`.
 
-### Triggers
-- Manual only: `workflow_dispatch` with optional overrides.
+### Inputs
+- `artifact-name`: Name of the artifact to deploy from `npm-build.yml` (required).
 
-### Manual inputs
-- `build-run-id`: Optional `npm-build.yml` run ID to deploy. If omitted, the latest successful `npm-build.yml` run is used.
-- `artifact-name`: Optional artifact name to deploy from the selected run. If omitted, the newest non-expired artifact in that run is used.
+### How to use (reusable call)
+```yaml
+jobs:
+	build-static:
+		uses: <owner>/<repo>/.github/workflows/npm-build.yml@<ref>
+		with:
+			node-version: "20"
+			application-name: "frontend"
+	
+	deploy-pages:
+		needs: build-static
+		uses: <owner>/<repo>/.github/workflows/deploy-page.yml@<ref>
+		with:
+			artifact-name: ${{ needs.build-static.outputs.artifact-name }}
+```
 
 ### Notes
-- The workflow resolves the artifact from the selected npm build run, downloads it, then publishes it using `actions/deploy-pages`.
+- This workflow can only be called from other workflows using `workflow_call`. It cannot be triggered manually.
+- It must be called in the same workflow run as `npm-build.yml` to access the artifact.
 - Repository Pages must be enabled and configured for GitHub Actions as the source.
 

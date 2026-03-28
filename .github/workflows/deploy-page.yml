@@ -1,15 +1,11 @@
 name: Deploy NPM Build Artifact To GitHub Pages
 
 on:
-  workflow_dispatch:
+  workflow_call:
     inputs:
-      build-run-id:
-        description: "Optional workflow run ID from npm-build.yml to deploy"
-        required: false
-        type: string
       artifact-name:
-        description: "Optional artifact name to deploy from the selected build run"
-        required: false
+        description: "Artifact name to deploy from npm-build.yml in the same run"
+        required: true
         type: string
 
 permissions:
@@ -23,95 +19,9 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  resolve-artifact:
-    name: Resolve build artifact
-    runs-on: ubuntu-latest
-    outputs:
-      run-id: ${{ steps.resolve.outputs.run_id }}
-      artifact-name: ${{ steps.resolve.outputs.artifact_name }}
-    steps:
-      - name: Resolve run ID and artifact name from npm-build
-        id: resolve
-        uses: actions/github-script@v7
-        env:
-          INPUT_RUN_ID: ${{ inputs.build-run-id }}
-          INPUT_ARTIFACT_NAME: ${{ inputs.artifact-name }}
-        with:
-          script: |
-            const requestedRunId = process.env.INPUT_RUN_ID?.trim();
-            const requestedArtifactName = process.env.INPUT_ARTIFACT_NAME?.trim();
-
-            let selectedRunId = requestedRunId;
-
-            // For manual dispatch without run ID, use the latest successful npm-build run.
-            if (!selectedRunId) {
-              const runsResponse = await github.rest.actions.listWorkflowRuns({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                workflow_id: 'npm-build.yml',
-                status: 'completed',
-                per_page: 50,
-              });
-
-              const latestSuccessful = runsResponse.data.workflow_runs.find(
-                (run) => run.conclusion === 'success'
-              );
-
-              if (!latestSuccessful) {
-                core.setFailed('No successful runs found for npm-build.yml.');
-                return;
-              }
-
-              selectedRunId = String(latestSuccessful.id);
-            }
-
-            const artifactsResponse = await github.rest.actions.listWorkflowRunArtifacts({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              run_id: Number(selectedRunId),
-              per_page: 100,
-            });
-
-            const availableArtifacts = artifactsResponse.data.artifacts.filter(
-              (artifact) => !artifact.expired
-            );
-
-            if (availableArtifacts.length === 0) {
-              core.setFailed(`No non-expired artifacts found for run ${selectedRunId}.`);
-              return;
-            }
-
-            let chosenArtifact;
-            if (requestedArtifactName) {
-              chosenArtifact = availableArtifacts.find(
-                (artifact) => artifact.name === requestedArtifactName
-              );
-
-              if (!chosenArtifact) {
-                const names = availableArtifacts.map((artifact) => artifact.name).join(', ');
-                core.setFailed(
-                  `Artifact "${requestedArtifactName}" not found in run ${selectedRunId}. Available artifacts: ${names}`
-                );
-                return;
-              }
-            } else {
-              // npm-build uploads one static bundle artifact. Pick newest as safe default.
-              chosenArtifact = [...availableArtifacts].sort(
-                (a, b) => new Date(b.created_at) - new Date(a.created_at)
-              )[0];
-            }
-
-            core.info(`Selected run ID: ${selectedRunId}`);
-            core.info(`Selected artifact: ${chosenArtifact.name}`);
-
-            core.setOutput('run_id', selectedRunId);
-            core.setOutput('artifact_name', chosenArtifact.name);
-
   deploy:
     name: Deploy to GitHub Pages
     runs-on: ubuntu-latest
-    needs:
-      - resolve-artifact
     steps:
       - name: Setup Pages
         uses: actions/configure-pages@v5
@@ -119,8 +29,7 @@ jobs:
       - name: Download static bundle artifact
         uses: actions/download-artifact@v4
         with:
-          run-id: ${{ needs.resolve-artifact.outputs.run-id }}
-          name: ${{ needs.resolve-artifact.outputs.artifact-name }}
+          name: ${{ inputs.artifact-name }}
           path: ./site
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
