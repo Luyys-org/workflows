@@ -83,3 +83,18 @@ jobs:
 
       - name: Push version bump commit
         run: git push
+
+      - name: Create GitHub Release
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.repos.createRelease({
+              owner: context.repo.owner,
+              repo:  context.repo.repo,
+              tag_name:         `v${{ steps.bump.outputs.new-version }}`,
+              name:             `v${{ steps.bump.outputs.new-version }}`,
+              body:             `## What's changed\n\nVersion bumped from \`${{ steps.bump.outputs.previous-version }}\` to \`${{ steps.bump.outputs.new-version }}\` (${{ inputs.update-type }}).`,
+              target_commitish: context.sha,
+              draft:            false,
+              prerelease:       false,
+            });

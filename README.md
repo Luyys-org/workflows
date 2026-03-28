@@ -87,7 +87,7 @@ jobs:
 
 ## NPM package version bump
 - Workflow: [.github/workflows/npm-version-bump.yml](.github/workflows/npm-version-bump.yml)
-- Bumps the version field in `package.json` (and `package-lock.json` when present) according to the requested semver update type, then commits and pushes the change back to the repository.
+- Bumps the version field in `package.json` (and `package-lock.json` when present) according to the requested semver update type, commits and pushes the change, then creates a GitHub Release tagged `v<new-version>`.
 
 ### Inputs
 - `update-type`: Semver increment to apply — `major` (breaking change), `minor` (new feature), or `patch` (bug fix). Required.
@@ -107,7 +107,7 @@ jobs:
 Consume outputs with `needs.bump.outputs.new-version` and `needs.bump.outputs.previous-version`.
 
 ### Notes
-- The workflow commits the updated file(s) as `github-actions[bot]` and pushes directly to the branch it was called on.
+- The workflow commits the updated file(s) as `github-actions[bot]`, pushes directly to the branch it was called on, and creates a GitHub Release tagged `v<new-version>` pointing at that commit.
 - `contents: write` permission is required and is declared inside the workflow, so no additional repository settings are needed when using `workflow_call`.
 - `update-type` is a free-form string validated at runtime; invalid values fail the job immediately before any file changes are made.
 
